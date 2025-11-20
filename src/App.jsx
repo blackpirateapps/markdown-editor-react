@@ -4,7 +4,8 @@ import {
   Search, FileText, Trash2, Layout, CheckCircle2, 
   Github, Loader2, X, RefreshCw, Eye, PenLine, 
   ExternalLink, UploadCloud, FileDiff, AlertCircle,
-  GitPullRequest, Menu, Tag, Hash, SortAsc, Clock, CalendarDays
+  GitPullRequest, Menu, Tag, Hash, SortAsc, Clock, CalendarDays,
+  Wifi, WifiOff, DownloadCloud
 } from 'lucide-react';
 
 // --- Constants ---
@@ -312,7 +313,7 @@ const CommitModal = ({ isOpen, onClose, dirtyNotes, onPush, isPushing, pushProgr
     );
 };
 
-const SettingsModal = ({ isOpen, onClose, config, onSave, onFetch, isLoading, progress, error }) => {
+const SettingsModal = ({ isOpen, onClose, config, onSave, onFetch, isLoading, progress, error, installPrompt, onInstall }) => {
     const [localConfig, setLocalConfig] = useState(config);
     useEffect(() => { if (isOpen) setLocalConfig(config); }, [isOpen, config]);
     if (!isOpen) return null;
@@ -320,36 +321,38 @@ const SettingsModal = ({ isOpen, onClose, config, onSave, onFetch, isLoading, pr
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/20 backdrop-blur-sm p-4 anim-fade">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden anim-pop" onClick={e => e.stopPropagation()}>
                 <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                    <h3 className="font-bold text-gray-700">GitHub Configuration</h3>
+                    <h3 className="font-bold text-gray-700">Settings</h3>
                     <button onClick={onClose} disabled={isLoading} className="p-1 hover:bg-gray-200 rounded-full text-gray-400 transition-colors disabled:opacity-50 active:scale-95"><X size={20}/></button>
                 </div>
-                <div className="p-6 space-y-4">
-                    <div className="anim-slide-up delay-100">
-                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Owner / Organization</label>
-                        <input type="text" value={localConfig.owner} onChange={(e) => setLocalConfig({...localConfig, owner: e.target.value})} placeholder="e.g. facebook" disabled={isLoading} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
-                    </div>
-                    <div className="flex gap-4 anim-slide-up delay-200">
-                        <div className="flex-1">
-                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Repository</label>
-                            <input type="text" value={localConfig.repo} onChange={(e) => setLocalConfig({...localConfig, repo: e.target.value})} placeholder="e.g. react" disabled={isLoading} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
+                
+                <div className="p-6 space-y-6">
+                    {/* GitHub Section */}
+                    <div className="space-y-4">
+                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">GitHub Sync</h4>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Owner</label>
+                            <input type="text" value={localConfig.owner} onChange={(e) => setLocalConfig({...localConfig, owner: e.target.value})} placeholder="e.g. facebook" disabled={isLoading} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
                         </div>
-                        <div className="flex-1">
-                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Folder Path</label>
-                            <input type="text" value={localConfig.path || ''} onChange={(e) => setLocalConfig({...localConfig, path: e.target.value})} placeholder="docs" disabled={isLoading} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
+                        <div className="flex gap-4">
+                            <div className="flex-1">
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Repo</label>
+                                <input type="text" value={localConfig.repo} onChange={(e) => setLocalConfig({...localConfig, repo: e.target.value})} placeholder="e.g. react" disabled={isLoading} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
+                            </div>
+                            <div className="flex-1">
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Path</label>
+                                <input type="text" value={localConfig.path || ''} onChange={(e) => setLocalConfig({...localConfig, path: e.target.value})} placeholder="docs" disabled={isLoading} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
+                            </div>
                         </div>
-                    </div>
-                    <div className="anim-slide-up delay-300">
-                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Personal Access Token</label>
-                        <input type="password" value={localConfig.token} onChange={(e) => setLocalConfig({...localConfig, token: e.target.value})} placeholder="ghp_..." disabled={isLoading} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
-                        <p className="text-[10px] text-gray-400 mt-1">Requires <b>Contents</b> (Read/Write) permissions.</p>
-                    </div>
-                    {error && (
-                        <div className="p-3 bg-red-50 text-red-600 text-xs rounded-lg border border-red-100 anim-pop flex items-start gap-2">
-                            <AlertCircle size={16} className="shrink-0 mt-0.5"/>
-                            <span>{error}</span>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Token</label>
+                            <input type="password" value={localConfig.token} onChange={(e) => setLocalConfig({...localConfig, token: e.target.value})} placeholder="ghp_..." disabled={isLoading} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
                         </div>
-                    )}
-                    <div className="pt-2 space-y-3 anim-slide-up delay-300">
+                        {error && (
+                            <div className="p-3 bg-red-50 text-red-600 text-xs rounded-lg border border-red-100 flex items-start gap-2">
+                                <AlertCircle size={16} className="shrink-0 mt-0.5"/>
+                                <span>{error}</span>
+                            </div>
+                        )}
                         <div className="flex gap-3">
                             <button onClick={() => onSave(localConfig)} disabled={isLoading} className="flex-1 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors active:scale-95">Save Config</button>
                             <button onClick={() => onFetch(localConfig)} disabled={isLoading || !localConfig.owner || !localConfig.repo} className="flex-1 py-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm active:scale-95">
@@ -358,6 +361,17 @@ const SettingsModal = ({ isOpen, onClose, config, onSave, onFetch, isLoading, pr
                         </div>
                         {isLoading && progress.total > 0 && <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden"><div className="bg-blue-500 h-full rounded-full transition-all duration-300 ease-out" style={{ width: `${(progress.current / progress.total) * 100}%` }} /></div>}
                     </div>
+
+                    {/* Install App Section (Only if available) */}
+                    {installPrompt && (
+                        <div className="pt-4 border-t border-gray-100">
+                             <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Application</h4>
+                             <button onClick={onInstall} className="w-full flex items-center justify-center gap-2 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-black transition-all active:scale-95">
+                                <DownloadCloud size={16}/>
+                                <span>Install App</span>
+                             </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -409,6 +423,10 @@ export default function App() {
   const [sortOption, setSortOption] = useState('lastmod'); // 'date', 'lastmod', 'tags'
   const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
 
+  // PWA & Offline State
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [installPrompt, setInstallPrompt] = useState(null);
+
   // Tag State
   const [isTagMenuOpen, setIsTagMenuOpen] = useState(false);
   const tagButtonRef = useRef(null);
@@ -424,7 +442,29 @@ export default function App() {
   const [pushError, setPushError] = useState(null);
   const [githubConfig, setGithubConfig] = useState({ owner: '', repo: '', path: '', token: '' });
 
-  // Initial Load
+  // --- Effects ---
+
+  // 1. Online/Offline & Install Prompt
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    const handleInstallPrompt = (e) => {
+        e.preventDefault();
+        setInstallPrompt(e);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('beforeinstallprompt', handleInstallPrompt);
+
+    return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+        window.removeEventListener('beforeinstallprompt', handleInstallPrompt);
+    };
+  }, []);
+
+  // 2. Initial Data Load
   useEffect(() => {
     const savedNotes = localStorage.getItem('things3-md-notes');
     const savedConfig = localStorage.getItem('things3-gh-config');
@@ -440,6 +480,7 @@ export default function App() {
     }
   }, []);
 
+  // 3. Persist Data
   useEffect(() => {
     localStorage.setItem('things3-md-notes', JSON.stringify(notes));
   }, [notes]);
@@ -465,7 +506,7 @@ export default function App() {
           if (sortOption === 'date') {
               const d1 = new Date(aFm.date || a.updatedAt);
               const d2 = new Date(bFm.date || b.updatedAt);
-              return d2 - d1; // Descending
+              return d2 - d1; 
           } else if (sortOption === 'tags') {
               const t1 = aFm.tags[0] || 'zzzz'; 
               const t2 = bFm.tags[0] || 'zzzz';
@@ -473,7 +514,7 @@ export default function App() {
           } else {
               const d1 = new Date(aFm.lastmod || a.updatedAt);
               const d2 = new Date(bFm.lastmod || b.updatedAt);
-              return d2 - d1; // Descending
+              return d2 - d1; 
           }
       });
 
@@ -485,9 +526,21 @@ export default function App() {
   const activeNoteParsed = activeNote ? parseFrontmatter(activeNote.content) : { tags: [] };
 
   // --- Handlers ---
+  const handleInstallApp = () => {
+      if (installPrompt) {
+          installPrompt.prompt();
+          installPrompt.userChoice.then((choiceResult) => {
+              if (choiceResult.outcome === 'accepted') {
+                  setInstallPrompt(null);
+              }
+          });
+      }
+  };
+
   const handleSaveConfig = (config) => { setGithubConfig(config); localStorage.setItem('things3-gh-config', JSON.stringify(config)); setFetchError(null); };
   
   const fetchFromGithub = async (configToUse) => {
+    if (!isOnline) { setFetchError("You are offline."); return; }
     setIsFetching(true); setFetchError(null); setFetchProgress({ current: 0, total: 0 });
     const config = configToUse || githubConfig;
     const headers = { 'Accept': 'application/vnd.github.v3+json' };
@@ -538,6 +591,7 @@ export default function App() {
   };
 
   const pushToGithub = async (message) => {
+      if (!isOnline) { setPushError("You are offline."); return; }
       setIsPushing(true); setPushError(null); setPushProgress({ current: 0, total: dirtyNotes.length });
       const config = githubConfig;
       const headers = { 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' };
@@ -603,7 +657,25 @@ export default function App() {
   return (
     <div className="flex h-screen w-full bg-gray-50 font-sans selection:bg-blue-200 text-gray-900 overflow-hidden">
       
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} config={githubConfig} onSave={handleSaveConfig} onFetch={fetchFromGithub} isLoading={isFetching} progress={fetchProgress} error={fetchError} />
+      {/* Offline Banner */}
+      {!isOnline && (
+        <div className="absolute top-0 left-0 right-0 bg-red-500 text-white text-[10px] font-bold text-center py-1 z-[70] anim-slide-up">
+          YOU ARE OFFLINE
+        </div>
+      )}
+
+      <SettingsModal 
+          isOpen={isSettingsOpen} 
+          onClose={() => setIsSettingsOpen(false)} 
+          config={githubConfig} 
+          onSave={handleSaveConfig} 
+          onFetch={fetchFromGithub} 
+          isLoading={isFetching} 
+          progress={fetchProgress} 
+          error={fetchError}
+          installPrompt={installPrompt}
+          onInstall={handleInstallApp}
+      />
       <CommitModal isOpen={isCommitOpen} onClose={() => setIsCommitOpen(false)} dirtyNotes={dirtyNotes} onPush={pushToGithub} isPushing={isPushing} pushProgress={pushProgress} error={pushError} />
 
       {/* Sidebar */}
@@ -621,11 +693,20 @@ export default function App() {
           <div className="mt-8 px-3 mb-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Sources</div>
           <SidebarItem icon={FileText} label="Local Notes" />
           <SidebarItem icon={Github} label="GitHub" onClick={() => setIsSettingsOpen(true)} isActive={isSettingsOpen} />
-          <button onClick={() => setIsCommitOpen(true)} disabled={dirtyNotes.length === 0} className={`w-full flex items-center justify-between px-3 py-2 mt-1 mb-1 rounded-lg text-sm font-medium transition-all duration-200 ${dirtyNotes.length > 0 ? 'text-blue-600 bg-blue-50 hover:bg-blue-100 cursor-pointer' : 'text-gray-400 cursor-default opacity-50'}`}>
+          
+          {/* Install App Button (Desktop Chrome/Edge) */}
+          {installPrompt && (
+            <button onClick={handleInstallApp} className="w-full flex items-center justify-between px-3 py-2 mb-1 rounded-lg text-sm font-medium text-blue-600 hover:bg-blue-50 transition-all duration-200">
+                <div className="flex items-center gap-3"><DownloadCloud size={18} /><span>Install App</span></div>
+            </button>
+          )}
+
+          <button onClick={() => setIsCommitOpen(true)} disabled={dirtyNotes.length === 0 || !isOnline} className={`w-full flex items-center justify-between px-3 py-2 mt-1 mb-1 rounded-lg text-sm font-medium transition-all duration-200 ${dirtyNotes.length > 0 && isOnline ? 'text-blue-600 bg-blue-50 hover:bg-blue-100 cursor-pointer' : 'text-gray-400 cursor-default opacity-50'}`}>
               <div className="flex items-center gap-3"><UploadCloud size={18} /><span>Push Changes</span></div>
               {dirtyNotes.length > 0 && <span className="text-xs font-bold bg-blue-500 text-white px-1.5 py-0.5 rounded-full">{dirtyNotes.length}</span>}
           </button>
         </div>
+        
         {/* Restored Footer Button */}
         <div className="p-4 border-t border-gray-200/50">
           <button onClick={handleCreateNote} className="flex items-center gap-2 text-gray-500 hover:text-blue-600 transition-all duration-300 group w-full">
@@ -647,10 +728,15 @@ export default function App() {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 md:hidden">
                         <button onClick={() => setIsSettingsOpen(true)} className="p-2 bg-white rounded-full shadow-sm text-gray-400 hover:text-blue-500 active:scale-95"><Settings size={18}/></button>
+                        {/* Mobile Offline Indicator */}
+                        {!isOnline && <WifiOff size={16} className="text-red-500"/>}
                         <h1 className="text-xl font-bold text-gray-900">Notes</h1>
                     </div>
                     <div className="hidden md:flex items-center justify-between w-full">
-                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">All Notes</span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">All Notes</span>
+                            {!isOnline && <span className="text-[10px] font-bold text-red-500 bg-red-50 px-1.5 rounded">OFFLINE</span>}
+                        </div>
                         <div className="flex items-center gap-1">
                              <div className="relative">
                                 <button onClick={() => setIsSortMenuOpen(!isSortMenuOpen)} className="p-1.5 hover:bg-gray-200 rounded text-gray-500 transition-colors"><SortAsc size={16} /></button>
@@ -669,7 +755,7 @@ export default function App() {
                             </button>
                             {isSortMenuOpen && <SortMenu currentSort={sortOption} onSortChange={setSortOption} onClose={() => setIsSortMenuOpen(false)} />}
                         </div>
-                        <button onClick={() => setIsCommitOpen(true)} disabled={dirtyNotes.length === 0} className={`md:hidden p-2 rounded-full shadow-sm active:scale-95 ${dirtyNotes.length > 0 ? 'bg-blue-500 text-white' : 'bg-white text-gray-300'}`}><UploadCloud size={18}/></button>
+                        <button onClick={() => setIsCommitOpen(true)} disabled={dirtyNotes.length === 0 || !isOnline} className={`md:hidden p-2 rounded-full shadow-sm active:scale-95 ${dirtyNotes.length > 0 && isOnline ? 'bg-blue-500 text-white' : 'bg-white text-gray-300'}`}><UploadCloud size={18}/></button>
                         <button onClick={handleCreateNote} className="p-2 bg-blue-500 text-white rounded-full shadow-sm active:scale-90 hover:bg-blue-600 transition-all">
                             <Plus size={20} />
                         </button>
