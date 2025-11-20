@@ -33,6 +33,21 @@ const getLocalISOString = () => {
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${offsetSign}${offsetHours}:${offsetMinutes}`;
 };
 
+const generateFilenameFromDate = (dateString) => {
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return `${Date.now()}.md`;
+  
+  const pad = (num) => (num < 10 ? '0' + num : num);
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  const seconds = pad(date.getSeconds());
+  
+  return `${year}-${month}-${day}-${hours}-${minutes}-${seconds}.md`;
+};
+
 const formatDateReadable = (dateString) => {
   if (!dateString) return '';
   const date = new Date(dateString);
@@ -96,7 +111,7 @@ const downloadMarkdown = (filename, content) => {
   const element = document.createElement('a');
   const file = new Blob([finalContent], { type: 'text/markdown' });
   element.href = URL.createObjectURL(file);
-  element.download = `${filename.replace(/\s+/g, '_') || 'untitled'}.md`;
+  element.download = filename || `${generateFilenameFromDate(now)}`;
   document.body.appendChild(element);
   element.click();
   document.body.removeChild(element);
@@ -175,7 +190,7 @@ const TagMenu = ({ selectedTags, onToggleTag }) => {
     };
 
     return (
-        <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 p-2 z-50 anim-pop">
+        <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 p-2 z-50 anim-pop origin-top-left">
              <form onSubmit={handleAddCustom} className="mb-2 px-1">
                 <input 
                     type="text"
@@ -210,7 +225,7 @@ const TagMenu = ({ selectedTags, onToggleTag }) => {
 };
 
 const SortMenu = ({ currentSort, onSortChange, onClose }) => (
-    <div className="absolute top-full right-0 mt-2 w-40 bg-white rounded-xl shadow-xl border border-gray-100 p-2 z-50 anim-pop">
+    <div className="absolute top-full right-0 mt-2 w-40 bg-white rounded-xl shadow-xl border border-gray-100 p-2 z-50 anim-pop origin-top-right">
         <div className="px-2 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Sort By</div>
         {[
             { id: 'lastmod', label: 'Last Modified', icon: Clock },
@@ -230,7 +245,6 @@ const SortMenu = ({ currentSort, onSortChange, onClose }) => (
 );
 
 const CommitModal = ({ isOpen, onClose, dirtyNotes, onPush, isPushing, pushProgress, error }) => {
-    // ... (Same as before)
     const [message, setMessage] = useState('');
     const defaultMessage = useMemo(() => {
         const count = dirtyNotes.length;
@@ -249,7 +263,7 @@ const CommitModal = ({ isOpen, onClose, dirtyNotes, onPush, isPushing, pushProgr
                         <UploadCloud size={20} className="text-blue-500"/>
                         Push Changes
                     </h3>
-                    <button onClick={onClose} disabled={isPushing} className="p-1 hover:bg-gray-200 rounded-full text-gray-400 transition-colors disabled:opacity-50"><X size={20}/></button>
+                    <button onClick={onClose} disabled={isPushing} className="p-1 hover:bg-gray-200 rounded-full text-gray-400 transition-colors disabled:opacity-50 active:scale-95"><X size={20}/></button>
                 </div>
                 <div className="p-6 space-y-6">
                     {dirtyNotes.length === 0 ? (
@@ -299,7 +313,6 @@ const CommitModal = ({ isOpen, onClose, dirtyNotes, onPush, isPushing, pushProgr
 };
 
 const SettingsModal = ({ isOpen, onClose, config, onSave, onFetch, isLoading, progress, error }) => {
-    // ... (Same as before)
     const [localConfig, setLocalConfig] = useState(config);
     useEffect(() => { if (isOpen) setLocalConfig(config); }, [isOpen, config]);
     if (!isOpen) return null;
@@ -308,7 +321,7 @@ const SettingsModal = ({ isOpen, onClose, config, onSave, onFetch, isLoading, pr
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden anim-pop" onClick={e => e.stopPropagation()}>
                 <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                     <h3 className="font-bold text-gray-700">GitHub Configuration</h3>
-                    <button onClick={onClose} disabled={isLoading} className="p-1 hover:bg-gray-200 rounded-full text-gray-400 transition-colors disabled:opacity-50 hover:rotate-90 duration-200"><X size={20}/></button>
+                    <button onClick={onClose} disabled={isLoading} className="p-1 hover:bg-gray-200 rounded-full text-gray-400 transition-colors disabled:opacity-50 active:scale-95"><X size={20}/></button>
                 </div>
                 <div className="p-6 space-y-4">
                     <div className="anim-slide-up delay-100">
@@ -356,7 +369,7 @@ const NoteItem = ({ note, isActive, onClick, onDelete }) => {
   const contentPreview = note.content.replace(/---[\s\S]*?---/, '').trim();
   
   return (
-    <div onClick={() => onClick(note)} className={`group relative p-4 mb-2 rounded-xl cursor-pointer transition-all duration-200 border transform ${isActive ? 'bg-blue-500 text-white shadow-md border-blue-500 scale-[1.02]' : 'bg-white hover:bg-gray-50 text-gray-900 border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:scale-[1.01]'}`}>
+    <div onClick={() => onClick(note)} className={`group relative p-4 mb-2 rounded-xl cursor-pointer transition-all duration-200 border transform ${isActive ? 'bg-blue-500 text-white shadow-md border-blue-500 scale-[1.02]' : 'bg-white hover:bg-gray-50 text-gray-900 border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:scale-[1.01] hover:-translate-y-0.5'}`}>
       <div className="flex justify-between items-start mb-1">
         <div className={`text-sm font-medium line-clamp-2 leading-snug pr-6 ${isActive ? 'text-white' : 'text-gray-800'}`}>{contentPreview || "No content..."}</div>
         {note.dirty && <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-white' : 'bg-blue-500'}`} title="Unsaved changes" />}
@@ -439,7 +452,6 @@ export default function App() {
           const contentMatch = note.content.toLowerCase().includes(query);
           const titleMatch = (note.title || '').toLowerCase().includes(query);
           
-          // Also check tags
           const parsed = parseFrontmatter(note.content);
           const tagMatch = parsed.tags.some(t => t.toLowerCase().includes(query));
           
@@ -455,12 +467,10 @@ export default function App() {
               const d2 = new Date(bFm.date || b.updatedAt);
               return d2 - d1; // Descending
           } else if (sortOption === 'tags') {
-              // Prioritize items with tags, then alphabetical by first tag
-              const t1 = aFm.tags[0] || 'zzzz'; // 'zzzz' pushes to end
+              const t1 = aFm.tags[0] || 'zzzz'; 
               const t2 = bFm.tags[0] || 'zzzz';
               return t1.localeCompare(t2);
           } else {
-              // Default: Last Modified
               const d1 = new Date(aFm.lastmod || a.updatedAt);
               const d2 = new Date(bFm.lastmod || b.updatedAt);
               return d2 - d1; // Descending
@@ -475,7 +485,6 @@ export default function App() {
   const activeNoteParsed = activeNote ? parseFrontmatter(activeNote.content) : { tags: [] };
 
   // --- Handlers ---
-  // (Most handlers are same as previous, keeping them concise)
   const handleSaveConfig = (config) => { setGithubConfig(config); localStorage.setItem('things3-gh-config', JSON.stringify(config)); setFetchError(null); };
   
   const fetchFromGithub = async (configToUse) => {
@@ -554,7 +563,8 @@ export default function App() {
 
   const handleCreateNote = () => {
     const now = getLocalISOString();
-    const newNote = { id: generateId(), title: '', content: createFrontmatter('', now, now), updatedAt: now, dirty: true, sha: null, filename: null };
+    const newFilename = generateFilenameFromDate(now);
+    const newNote = { id: generateId(), title: '', content: createFrontmatter('', now, now), updatedAt: now, dirty: true, sha: null, filename: newFilename };
     setNotes([newNote, ...notes]); setActiveNoteId(newNote.id); setIsPreview(false);
   };
 
@@ -616,7 +626,15 @@ export default function App() {
               {dirtyNotes.length > 0 && <span className="text-xs font-bold bg-blue-500 text-white px-1.5 py-0.5 rounded-full">{dirtyNotes.length}</span>}
           </button>
         </div>
-        {/* No bottom bar button here anymore, pushed to global FAB */}
+        {/* Restored Footer Button */}
+        <div className="p-4 border-t border-gray-200/50">
+          <button onClick={handleCreateNote} className="flex items-center gap-2 text-gray-500 hover:text-blue-600 transition-all duration-300 group w-full">
+            <div className="p-1.5 bg-white rounded-full shadow-sm group-hover:shadow-md transition-all duration-300 group-hover:scale-110">
+                <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500"/>
+            </div>
+            <span className="font-medium text-sm group-hover:translate-x-1 transition-transform duration-300">New Note</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Content */}
@@ -633,9 +651,14 @@ export default function App() {
                     </div>
                     <div className="hidden md:flex items-center justify-between w-full">
                         <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">All Notes</span>
-                        <div className="relative">
-                            <button onClick={() => setIsSortMenuOpen(!isSortMenuOpen)} className="p-1.5 hover:bg-gray-200 rounded text-gray-500 transition-colors"><SortAsc size={16} /></button>
-                            {isSortMenuOpen && <SortMenu currentSort={sortOption} onSortChange={setSortOption} onClose={() => setIsSortMenuOpen(false)} />}
+                        <div className="flex items-center gap-1">
+                             <div className="relative">
+                                <button onClick={() => setIsSortMenuOpen(!isSortMenuOpen)} className="p-1.5 hover:bg-gray-200 rounded text-gray-500 transition-colors"><SortAsc size={16} /></button>
+                                {isSortMenuOpen && <SortMenu currentSort={sortOption} onSortChange={setSortOption} onClose={() => setIsSortMenuOpen(false)} />}
+                            </div>
+                             <button onClick={handleCreateNote} className="p-1.5 hover:bg-gray-200 rounded text-gray-500 transition-all hover:scale-110 active:scale-95">
+                                <Plus size={18} />
+                             </button>
                         </div>
                     </div>
                     {/* Mobile Actions */}
@@ -647,6 +670,9 @@ export default function App() {
                             {isSortMenuOpen && <SortMenu currentSort={sortOption} onSortChange={setSortOption} onClose={() => setIsSortMenuOpen(false)} />}
                         </div>
                         <button onClick={() => setIsCommitOpen(true)} disabled={dirtyNotes.length === 0} className={`md:hidden p-2 rounded-full shadow-sm active:scale-95 ${dirtyNotes.length > 0 ? 'bg-blue-500 text-white' : 'bg-white text-gray-300'}`}><UploadCloud size={18}/></button>
+                        <button onClick={handleCreateNote} className="p-2 bg-blue-500 text-white rounded-full shadow-sm active:scale-90 hover:bg-blue-600 transition-all">
+                            <Plus size={20} />
+                        </button>
                     </div>
                 </div>
                 
@@ -669,13 +695,6 @@ export default function App() {
                   <NoteItem key={note.id} note={note} isActive={activeNoteId === note.id} onClick={(n) => { setActiveNoteId(n.id); setIsPreview(false); }} onDelete={handleDeleteNote} />
                 ))}
             </div>
-        </div>
-
-        {/* Global FAB */}
-        <div className="absolute bottom-8 right-8 z-50">
-             <button onClick={handleCreateNote} className="flex items-center justify-center w-16 h-16 bg-blue-500 rounded-full shadow-[0_8px_30px_-4px_rgba(59,130,246,0.6)] hover:bg-blue-600 active:scale-95 transition-all hover:rotate-90 duration-300">
-                <Plus className="text-white" size={32} strokeWidth={3} />
-             </button>
         </div>
 
         {/* Editor Column */}
