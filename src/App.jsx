@@ -1,11 +1,17 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Plus, Calendar, Download, ChevronLeft, Settings, 
   Search, FileText, Trash2, Layout, CheckCircle2, 
   Github, Loader2, X, RefreshCw, Eye, PenLine, 
   ExternalLink, UploadCloud, FileDiff, AlertCircle,
-  GitPullRequest, Menu
+  GitPullRequest, Menu, Tag, Hash, SortAsc, Clock, CalendarDays
 } from 'lucide-react';
+
+// --- Constants ---
+const PREDEFINED_TAGS = [
+  'quotes', 'bookmarks', 'links', 'website', 'study', 
+  'cooking', 'ideas', 'dreams', 'linux', 'computer'
+];
 
 // --- Utilities ---
 
@@ -34,8 +40,9 @@ const formatDateReadable = (dateString) => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-const createFrontmatter = (title, date, lastmod) => {
-  return `---\ntitle: ${title}\ndate: ${date}\nlastmod: ${lastmod}\n---\n\n`;
+const createFrontmatter = (title, date, lastmod, tags = []) => {
+  const tagString = `[${tags.join(', ')}]`;
+  return `---\ntitle: ${title}\ndate: ${date}\nlastmod: ${lastmod}\ntags: ${tagString}\n---\n\n`;
 };
 
 const upsertFrontmatterField = (content, field, value) => {
@@ -65,12 +72,22 @@ const parseFrontmatter = (content) => {
         const frontmatter = match[1];
         const titleMatch = frontmatter.match(/title:\s*(.*)/);
         const dateMatch = frontmatter.match(/date:\s*(.*)/);
+        const lastmodMatch = frontmatter.match(/lastmod:\s*(.*)/);
+        
+        const tagsMatch = frontmatter.match(/tags:\s*\[(.*?)\]/);
+        let tags = [];
+        if (tagsMatch && tagsMatch[1]) {
+            tags = tagsMatch[1].split(',').map(t => t.trim()).filter(Boolean);
+        }
+
         return {
             title: titleMatch ? titleMatch[1].trim() : null,
-            date: dateMatch ? dateMatch[1].trim() : null
+            date: dateMatch ? dateMatch[1].trim() : null,
+            lastmod: lastmodMatch ? lastmodMatch[1].trim() : null,
+            tags: tags
         };
     }
-    return { title: null, date: null };
+    return { title: null, date: null, lastmod: null, tags: [] };
 };
 
 const downloadMarkdown = (filename, content) => {
@@ -144,9 +161,76 @@ const MarkdownPreview = ({ content }) => {
   return <div className="prose prose-gray max-w-none pb-10">{cleanContent.split('\n').map((line, i) => renderLine(line, i))}</div>;
 };
 
-// --- Modals ---
+// --- Components ---
+
+const TagMenu = ({ selectedTags, onToggleTag }) => {
+    const [customTag, setCustomTag] = useState('');
+
+    const handleAddCustom = (e) => {
+        e.preventDefault();
+        if (customTag.trim()) {
+            onToggleTag(customTag.trim().toLowerCase());
+            setCustomTag('');
+        }
+    };
+
+    return (
+        <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 p-2 z-50 anim-pop">
+             <form onSubmit={handleAddCustom} className="mb-2 px-1">
+                <input 
+                    type="text"
+                    value={customTag}
+                    onChange={(e) => setCustomTag(e.target.value)}
+                    placeholder="Type new tag..."
+                    className="w-full text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 transition-all"
+                />
+            </form>
+            
+            <div className="px-2 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Select Tag</div>
+            <div className="max-h-64 overflow-y-auto no-scrollbar">
+                {PREDEFINED_TAGS.map(tag => {
+                    const isSelected = selectedTags.includes(tag);
+                    return (
+                        <button
+                            key={tag}
+                            onClick={() => onToggleTag(tag)}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center justify-between transition-colors ${isSelected ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50 text-gray-700'}`}
+                        >
+                            <div className="flex items-center gap-2">
+                                <Hash size={14} className={isSelected ? 'text-blue-500' : 'text-gray-400'}/>
+                                {tag}
+                            </div>
+                            {isSelected && <CheckCircle2 size={14} className="text-blue-500"/>}
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
+const SortMenu = ({ currentSort, onSortChange, onClose }) => (
+    <div className="absolute top-full right-0 mt-2 w-40 bg-white rounded-xl shadow-xl border border-gray-100 p-2 z-50 anim-pop">
+        <div className="px-2 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Sort By</div>
+        {[
+            { id: 'lastmod', label: 'Last Modified', icon: Clock },
+            { id: 'date', label: 'Date Created', icon: CalendarDays },
+            { id: 'tags', label: 'Tags', icon: Tag },
+        ].map(opt => (
+            <button
+                key={opt.id}
+                onClick={() => { onSortChange(opt.id); onClose(); }}
+                className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 transition-colors ${currentSort === opt.id ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50 text-gray-700'}`}
+            >
+                <opt.icon size={14}/>
+                {opt.label}
+            </button>
+        ))}
+    </div>
+);
 
 const CommitModal = ({ isOpen, onClose, dirtyNotes, onPush, isPushing, pushProgress, error }) => {
+    // ... (Same as before)
     const [message, setMessage] = useState('');
     const defaultMessage = useMemo(() => {
         const count = dirtyNotes.length;
@@ -167,7 +251,6 @@ const CommitModal = ({ isOpen, onClose, dirtyNotes, onPush, isPushing, pushProgr
                     </h3>
                     <button onClick={onClose} disabled={isPushing} className="p-1 hover:bg-gray-200 rounded-full text-gray-400 transition-colors disabled:opacity-50"><X size={20}/></button>
                 </div>
-                
                 <div className="p-6 space-y-6">
                     {dirtyNotes.length === 0 ? (
                         <div className="text-center py-8 text-gray-500">
@@ -191,14 +274,7 @@ const CommitModal = ({ isOpen, onClose, dirtyNotes, onPush, isPushing, pushProgr
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Commit Message</label>
-                                <input 
-                                    type="text" 
-                                    value={message}
-                                    onChange={(e) => setMessage(e.target.value)}
-                                    placeholder={defaultMessage}
-                                    disabled={isPushing}
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                                />
+                                <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} placeholder={defaultMessage} disabled={isPushing} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
                             </div>
                         </>
                     )}
@@ -210,32 +286,11 @@ const CommitModal = ({ isOpen, onClose, dirtyNotes, onPush, isPushing, pushProgr
                     )}
                     <div className="space-y-3">
                          {dirtyNotes.length > 0 && (
-                             <button 
-                                onClick={() => onPush(message || defaultMessage)}
-                                disabled={isPushing}
-                                className="w-full py-3 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95"
-                            >
-                                {isPushing ? (
-                                    <>
-                                        <Loader2 size={18} className="animate-spin"/>
-                                        <span>Pushing {pushProgress.current}/{pushProgress.total}...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <UploadCloud size={18}/>
-                                        <span>Push {dirtyNotes.length} Changes</span>
-                                    </>
-                                )}
+                             <button onClick={() => onPush(message || defaultMessage)} disabled={isPushing} className="w-full py-3 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95">
+                                {isPushing ? <><Loader2 size={18} className="animate-spin"/><span>Pushing {pushProgress.current}/{pushProgress.total}...</span></> : <><UploadCloud size={18}/><span>Push {dirtyNotes.length} Changes</span></>}
                             </button>
                          )}
-                         {isPushing && pushProgress.total > 0 && (
-                            <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                                <div 
-                                    className="bg-blue-500 h-full rounded-full transition-all duration-300 ease-out"
-                                    style={{ width: `${(pushProgress.current / pushProgress.total) * 100}%` }}
-                                />
-                            </div>
-                        )}
+                         {isPushing && pushProgress.total > 0 && <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden"><div className="bg-blue-500 h-full rounded-full transition-all duration-300 ease-out" style={{ width: `${(pushProgress.current / pushProgress.total) * 100}%` }} /></div>}
                     </div>
                 </div>
             </div>
@@ -244,6 +299,7 @@ const CommitModal = ({ isOpen, onClose, dirtyNotes, onPush, isPushing, pushProgr
 };
 
 const SettingsModal = ({ isOpen, onClose, config, onSave, onFetch, isLoading, progress, error }) => {
+    // ... (Same as before)
     const [localConfig, setLocalConfig] = useState(config);
     useEffect(() => { if (isOpen) setLocalConfig(config); }, [isOpen, config]);
     if (!isOpen) return null;
@@ -296,14 +352,27 @@ const SettingsModal = ({ isOpen, onClose, config, onSave, onFetch, isLoading, pr
 };
 
 const NoteItem = ({ note, isActive, onClick, onDelete }) => {
+  const parsed = parseFrontmatter(note.content);
   const contentPreview = note.content.replace(/---[\s\S]*?---/, '').trim();
+  
   return (
     <div onClick={() => onClick(note)} className={`group relative p-4 mb-2 rounded-xl cursor-pointer transition-all duration-200 border transform ${isActive ? 'bg-blue-500 text-white shadow-md border-blue-500 scale-[1.02]' : 'bg-white hover:bg-gray-50 text-gray-900 border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:scale-[1.01]'}`}>
       <div className="flex justify-between items-start mb-1">
         <div className={`text-sm font-medium line-clamp-2 leading-snug pr-6 ${isActive ? 'text-white' : 'text-gray-800'}`}>{contentPreview || "No content..."}</div>
         {note.dirty && <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-white' : 'bg-blue-500'}`} title="Unsaved changes" />}
       </div>
-      <div className={`text-[10px] font-bold uppercase tracking-wider transition-colors ${isActive ? 'text-blue-200' : 'text-gray-400'}`}>{formatDateReadable(note.updatedAt)}</div>
+      
+      <div className="flex items-center justify-between mt-2">
+          <div className={`text-[10px] font-bold uppercase tracking-wider transition-colors ${isActive ? 'text-blue-200' : 'text-gray-400'}`}>{formatDateReadable(note.updatedAt)}</div>
+          {parsed.tags.length > 0 && (
+            <div className="flex gap-1">
+                {parsed.tags.slice(0, 2).map(tag => (
+                    <div key={tag} className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-blue-300' : 'bg-gray-300'}`} title={tag}/>
+                ))}
+                {parsed.tags.length > 2 && <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-blue-300' : 'bg-gray-300'}`}/>}
+            </div>
+          )}
+      </div>
       <button onClick={(e) => { e.stopPropagation(); onDelete(note.id); }} className={`absolute right-2 bottom-2 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 ${isActive ? 'text-blue-100 hover:bg-blue-600' : 'text-gray-400 hover:text-red-500 hover:bg-gray-100'}`}><Trash2 size={14} /></button>
     </div>
   );
@@ -319,19 +388,25 @@ const SidebarItem = ({ icon: Icon, label, count, isActive, onClick }) => (
 // --- Main Application ---
 
 export default function App() {
+  // State
   const [notes, setNotes] = useState([]);
   const [activeNoteId, setActiveNoteId] = useState(null);
   const [isPreview, setIsPreview] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortOption, setSortOption] = useState('lastmod'); // 'date', 'lastmod', 'tags'
+  const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
+
+  // Tag State
+  const [isTagMenuOpen, setIsTagMenuOpen] = useState(false);
+  const tagButtonRef = useRef(null);
   
   // GitHub State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCommitOpen, setIsCommitOpen] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
-  
   const [fetchProgress, setFetchProgress] = useState({ current: 0, total: 0 });
   const [pushProgress, setPushProgress] = useState({ current: 0, total: 0 });
-  
   const [fetchError, setFetchError] = useState(null);
   const [pushError, setPushError] = useState(null);
   const [githubConfig, setGithubConfig] = useState({ owner: '', repo: '', path: '', token: '' });
@@ -344,10 +419,9 @@ export default function App() {
     if (savedNotes) {
       setNotes(JSON.parse(savedNotes));
     } else {
-      // Demo data
       const now = getLocalISOString();
       setNotes([{ 
-          id: '1', title: 'Welcome', content: createFrontmatter('Welcome', now, now) + '# Welcome\n\nStart writing...', 
+          id: '1', title: 'Welcome', content: createFrontmatter('Welcome', now, now, ['ideas']) + '# Welcome\n\nStart writing...', 
           updatedAt: now, dirty: false, sha: null, filename: 'Welcome.md'
       }]);
     }
@@ -357,20 +431,55 @@ export default function App() {
     localStorage.setItem('things3-md-notes', JSON.stringify(notes));
   }, [notes]);
 
+  // Derived State: Search & Sort
+  const displayedNotes = useMemo(() => {
+      let processed = notes.filter(note => {
+          if (!searchQuery) return true;
+          const query = searchQuery.toLowerCase();
+          const contentMatch = note.content.toLowerCase().includes(query);
+          const titleMatch = (note.title || '').toLowerCase().includes(query);
+          
+          // Also check tags
+          const parsed = parseFrontmatter(note.content);
+          const tagMatch = parsed.tags.some(t => t.toLowerCase().includes(query));
+          
+          return contentMatch || titleMatch || tagMatch;
+      });
+
+      processed.sort((a, b) => {
+          const aFm = parseFrontmatter(a.content);
+          const bFm = parseFrontmatter(b.content);
+
+          if (sortOption === 'date') {
+              const d1 = new Date(aFm.date || a.updatedAt);
+              const d2 = new Date(bFm.date || b.updatedAt);
+              return d2 - d1; // Descending
+          } else if (sortOption === 'tags') {
+              // Prioritize items with tags, then alphabetical by first tag
+              const t1 = aFm.tags[0] || 'zzzz'; // 'zzzz' pushes to end
+              const t2 = bFm.tags[0] || 'zzzz';
+              return t1.localeCompare(t2);
+          } else {
+              // Default: Last Modified
+              const d1 = new Date(aFm.lastmod || a.updatedAt);
+              const d2 = new Date(bFm.lastmod || b.updatedAt);
+              return d2 - d1; // Descending
+          }
+      });
+
+      return processed;
+  }, [notes, searchQuery, sortOption]);
+
   const activeNote = notes.find(n => n.id === activeNoteId);
   const dirtyNotes = notes.filter(n => n.dirty);
+  const activeNoteParsed = activeNote ? parseFrontmatter(activeNote.content) : { tags: [] };
 
-  // GitHub Actions (Sync/Clone)
-  const handleSaveConfig = (config) => {
-      setGithubConfig(config);
-      localStorage.setItem('things3-gh-config', JSON.stringify(config));
-      setFetchError(null); 
-  };
-
+  // --- Handlers ---
+  // (Most handlers are same as previous, keeping them concise)
+  const handleSaveConfig = (config) => { setGithubConfig(config); localStorage.setItem('things3-gh-config', JSON.stringify(config)); setFetchError(null); };
+  
   const fetchFromGithub = async (configToUse) => {
-    setIsFetching(true);
-    setFetchError(null);
-    setFetchProgress({ current: 0, total: 0 });
+    setIsFetching(true); setFetchError(null); setFetchProgress({ current: 0, total: 0 });
     const config = configToUse || githubConfig;
     const headers = { 'Accept': 'application/vnd.github.v3+json' };
     if (config.token) headers['Authorization'] = `token ${config.token}`;
@@ -378,18 +487,12 @@ export default function App() {
     try {
         let url = `https://api.github.com/repos/${config.owner}/${config.repo}/contents`;
         if (config.path) url += `/${config.path.replace(/^\/+|\/+$/g, '')}`;
-
         const listResponse = await fetch(url, { headers });
-        if (!listResponse.ok) throw new Error(`Error ${listResponse.status}: ${listResponse.statusText}`);
-        
+        if (!listResponse.ok) throw new Error(listResponse.status === 404 ? 'Repo/Path not found' : `Error ${listResponse.status}`);
         const files = await listResponse.json();
-        if (!Array.isArray(files)) throw new Error('Path is not a directory.');
-
+        if (!Array.isArray(files)) throw new Error('Not a directory');
         const mdFiles = files.filter(f => f.name.endsWith('.md') && f.type === 'file');
-        if (mdFiles.length === 0) throw new Error('No markdown files found.');
-
         setFetchProgress({ current: 0, total: mdFiles.length });
-
         const fetchedNotes = [];
         for (const file of mdFiles) {
             const contentResponse = await fetch(file.url, { headers });
@@ -401,7 +504,6 @@ export default function App() {
                 const title = file.name.replace('.md', '');
                 let finalContent = rawContent;
                 let displayDate = now;
-
                 if (hasFrontmatter) {
                      const parsed = parseFrontmatter(rawContent);
                      if (parsed.date) displayDate = parsed.date;
@@ -409,114 +511,51 @@ export default function App() {
                      finalContent = createFrontmatter(title, now, now) + rawContent;
                 }
                 const parsedForTitle = parseFrontmatter(finalContent);
-                
-                fetchedNotes.push({
-                    id: generateId(),
-                    title: parsedForTitle.title || title,
-                    content: finalContent,
-                    updatedAt: displayDate,
-                    sha: fileData.sha,
-                    filename: file.name,
-                    dirty: false
-                });
+                fetchedNotes.push({ id: generateId(), title: parsedForTitle.title || title, content: finalContent, updatedAt: displayDate, sha: fileData.sha, filename: file.name, dirty: false });
             }
             setFetchProgress(prev => ({ ...prev, current: prev.current + 1 }));
         }
-
         setNotes(currentNotes => {
             const mergedNotes = [...currentNotes];
             fetchedNotes.forEach(fetchedNote => {
                 const existingIndex = mergedNotes.findIndex(n => getNoteFilename(n) === fetchedNote.filename);
-                if (existingIndex !== -1) {
-                    mergedNotes[existingIndex] = { ...fetchedNote, id: mergedNotes[existingIndex].id };
-                } else {
-                    mergedNotes.push(fetchedNote);
-                }
+                if (existingIndex !== -1) { mergedNotes[existingIndex] = { ...fetchedNote, id: mergedNotes[existingIndex].id }; } 
+                else { mergedNotes.push(fetchedNote); }
             });
             return mergedNotes;
         });
-
         setIsSettingsOpen(false);
-    } catch (err) {
-        setFetchError(err.message === 'Failed to fetch' ? "Network error." : err.message);
-    } finally {
-        setIsFetching(false);
-    }
+    } catch (err) { setFetchError(err.message); } finally { setIsFetching(false); }
   };
 
-  // GitHub Actions (Push)
   const pushToGithub = async (message) => {
-      setIsPushing(true);
-      setPushError(null);
-      setPushProgress({ current: 0, total: dirtyNotes.length });
-      
+      setIsPushing(true); setPushError(null); setPushProgress({ current: 0, total: dirtyNotes.length });
       const config = githubConfig;
-      const headers = { 
-          'Accept': 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json'
-      };
+      const headers = { 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' };
       if (config.token) headers['Authorization'] = `token ${config.token}`;
-
       try {
           const updatedNotes = [...notes];
           let successCount = 0;
-
           for (const note of dirtyNotes) {
               let filename = getNoteFilename(note);
               let path = config.path ? `${config.path.replace(/^\/+|\/+$/g, '')}/${filename}` : filename;
               let url = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${path}`;
-
-              const body = {
-                  message: message,
-                  content: encodeBase64(note.content),
-                  ...(note.sha && { sha: note.sha })
-              };
-
-              const response = await fetch(url, {
-                  method: 'PUT',
-                  headers: headers,
-                  body: JSON.stringify(body)
-              });
-
+              const body = { message: message, content: encodeBase64(note.content), ...(note.sha && { sha: note.sha }) };
+              const response = await fetch(url, { method: 'PUT', headers: headers, body: JSON.stringify(body) });
               if (!response.ok) throw new Error(`Failed to push ${filename}`);
-
               const data = await response.json();
               const noteIndex = updatedNotes.findIndex(n => n.id === note.id);
-              if (noteIndex !== -1) {
-                  updatedNotes[noteIndex] = {
-                      ...updatedNotes[noteIndex],
-                      sha: data.content.sha,
-                      filename: filename,
-                      dirty: false
-                  };
-              }
-              successCount++;
-              setPushProgress(prev => ({ ...prev, current: successCount }));
+              if (noteIndex !== -1) { updatedNotes[noteIndex] = { ...updatedNotes[noteIndex], sha: data.content.sha, filename: filename, dirty: false }; }
+              successCount++; setPushProgress(prev => ({ ...prev, current: successCount }));
           }
-          setNotes(updatedNotes);
-          setIsCommitOpen(false);
-      } catch (err) {
-          setPushError(err.message);
-      } finally {
-          setIsPushing(false);
-      }
+          setNotes(updatedNotes); setIsCommitOpen(false);
+      } catch (err) { setPushError(err.message); } finally { setIsPushing(false); }
   };
 
-  // Note Actions
   const handleCreateNote = () => {
     const now = getLocalISOString();
-    const newNote = {
-      id: generateId(),
-      title: '',
-      content: createFrontmatter('', now, now),
-      updatedAt: now,
-      dirty: true,
-      sha: null,
-      filename: null 
-    };
-    setNotes([newNote, ...notes]);
-    setActiveNoteId(newNote.id);
-    setIsPreview(false);
+    const newNote = { id: generateId(), title: '', content: createFrontmatter('', now, now), updatedAt: now, dirty: true, sha: null, filename: null };
+    setNotes([newNote, ...notes]); setActiveNoteId(newNote.id); setIsPreview(false);
   };
 
   const handleUpdateNote = (id, updates) => {
@@ -529,11 +568,27 @@ export default function App() {
       return { ...n, ...updates, content: updatedContent, updatedAt: now, dirty: true };
     }));
   };
+  
+  const handleToggleTag = (tag) => {
+      if (!activeNoteId) return;
+      const currentTags = activeNoteParsed.tags;
+      const newTags = currentTags.includes(tag) ? currentTags.filter(t => t !== tag) : [...currentTags, tag];
+      const tagString = `[${newTags.join(', ')}]`;
+      const newContent = upsertFrontmatterField(activeNote.content, 'tags', tagString);
+      const now = getLocalISOString();
+      const finalContent = upsertFrontmatterField(newContent, 'lastmod', now);
+      setNotes(notes.map(n => n.id === activeNoteId ? { ...n, content: finalContent, updatedAt: now, dirty: true } : n));
+  };
 
   const handleDeleteNote = (id) => {
     setNotes(notes.filter(n => n.id !== id));
     if (activeNoteId === id) setActiveNoteId(null);
   };
+  
+  useEffect(() => {
+      const handleClickOutside = (event) => { if (tagButtonRef.current && !tagButtonRef.current.contains(event.target)) { setIsTagMenuOpen(false); } };
+      document.addEventListener('mousedown', handleClickOutside); return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <div className="flex h-screen w-full bg-gray-50 font-sans selection:bg-blue-200 text-gray-900 overflow-hidden">
@@ -541,8 +596,8 @@ export default function App() {
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} config={githubConfig} onSave={handleSaveConfig} onFetch={fetchFromGithub} isLoading={isFetching} progress={fetchProgress} error={fetchError} />
       <CommitModal isOpen={isCommitOpen} onClose={() => setIsCommitOpen(false)} dirtyNotes={dirtyNotes} onPush={pushToGithub} isPushing={isPushing} pushProgress={pushProgress} error={pushError} />
 
-      {/* Sidebar: Hidden on Mobile, Visible on Desktop */}
-      <div className="hidden md:flex flex-col w-64 bg-[#F0F1F3] border-r border-gray-200 h-full shrink-0">
+      {/* Sidebar */}
+      <div className="hidden md:flex flex-col w-64 bg-[#F0F1F3] border-r border-gray-200 h-full shrink-0 relative">
         <div className="h-12 flex items-center gap-2 px-5">
            <div className="w-3 h-3 rounded-full bg-red-400 shadow-sm"></div>
            <div className="w-3 h-3 rounded-full bg-yellow-400 shadow-sm"></div>
@@ -553,84 +608,86 @@ export default function App() {
           <SidebarItem icon={Calendar} label="Today" count={notes.length} isActive={true} />
           <SidebarItem icon={CheckCircle2} label="Completed" isActive={false} />
           <SidebarItem icon={Trash2} label="Trash" isActive={false} />
-          
           <div className="mt-8 px-3 mb-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Sources</div>
           <SidebarItem icon={FileText} label="Local Notes" />
           <SidebarItem icon={Github} label="GitHub" onClick={() => setIsSettingsOpen(true)} isActive={isSettingsOpen} />
-          
           <button onClick={() => setIsCommitOpen(true)} disabled={dirtyNotes.length === 0} className={`w-full flex items-center justify-between px-3 py-2 mt-1 mb-1 rounded-lg text-sm font-medium transition-all duration-200 ${dirtyNotes.length > 0 ? 'text-blue-600 bg-blue-50 hover:bg-blue-100 cursor-pointer' : 'text-gray-400 cursor-default opacity-50'}`}>
               <div className="flex items-center gap-3"><UploadCloud size={18} /><span>Push Changes</span></div>
               {dirtyNotes.length > 0 && <span className="text-xs font-bold bg-blue-500 text-white px-1.5 py-0.5 rounded-full">{dirtyNotes.length}</span>}
           </button>
         </div>
-        <div className="p-4 border-t border-gray-200/50">
-          <button onClick={handleCreateNote} className="flex items-center gap-2 text-gray-500 hover:text-blue-600 transition-colors text-sm font-medium group">
-            <Plus size={18} className="group-hover:rotate-90 transition-transform duration-300"/><span>New List</span>
-          </button>
-        </div>
+        {/* No bottom bar button here anymore, pushed to global FAB */}
       </div>
 
-      {/* Main Content Area */}
+      {/* Main Content */}
       <div className="flex-1 flex relative overflow-hidden">
         
         {/* Note List Column */}
-        {/* Desktop: Always visible (w-72) */}
-        {/* Mobile: Visible ONLY if NO active note (w-full) */}
-        <div className={`
-            flex flex-col border-r border-gray-200 bg-[#F5F6F8] h-full transition-all duration-300 ease-in-out
-            ${activeNoteId ? 'hidden md:flex w-72 shrink-0' : 'flex w-full md:w-72 shrink-0'}
-        `}>
-            {/* Header */}
-            <div className="h-14 md:h-12 flex items-center justify-between px-4 border-b border-gray-200/50 bg-[#F5F6F8] sticky top-0 z-10 backdrop-blur-sm">
-                <div className="flex items-center gap-2 md:hidden">
-                    <button onClick={() => setIsSettingsOpen(true)} className="p-2 bg-white rounded-full shadow-sm text-gray-400 hover:text-blue-500 active:scale-95"><Settings size={18}/></button>
-                    <h1 className="text-xl font-bold text-gray-900">Notes</h1>
+        <div className={`flex flex-col border-r border-gray-200 bg-[#F5F6F8] h-full transition-all duration-300 ease-in-out ${activeNoteId ? 'hidden md:flex w-72 shrink-0' : 'flex w-full md:w-72 shrink-0'}`}>
+            {/* Header & Search */}
+            <div className="flex flex-col px-4 pt-4 pb-2 border-b border-gray-200/50 bg-[#F5F6F8] sticky top-0 z-10 backdrop-blur-sm gap-3">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 md:hidden">
+                        <button onClick={() => setIsSettingsOpen(true)} className="p-2 bg-white rounded-full shadow-sm text-gray-400 hover:text-blue-500 active:scale-95"><Settings size={18}/></button>
+                        <h1 className="text-xl font-bold text-gray-900">Notes</h1>
+                    </div>
+                    <div className="hidden md:flex items-center justify-between w-full">
+                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">All Notes</span>
+                        <div className="relative">
+                            <button onClick={() => setIsSortMenuOpen(!isSortMenuOpen)} className="p-1.5 hover:bg-gray-200 rounded text-gray-500 transition-colors"><SortAsc size={16} /></button>
+                            {isSortMenuOpen && <SortMenu currentSort={sortOption} onSortChange={setSortOption} onClose={() => setIsSortMenuOpen(false)} />}
+                        </div>
+                    </div>
+                    {/* Mobile Actions */}
+                    <div className="flex gap-2 md:hidden">
+                        <div className="relative">
+                            <button onClick={() => setIsSortMenuOpen(!isSortMenuOpen)} className="p-2 bg-white rounded-full shadow-sm text-gray-400">
+                                <SortAsc size={18}/>
+                            </button>
+                            {isSortMenuOpen && <SortMenu currentSort={sortOption} onSortChange={setSortOption} onClose={() => setIsSortMenuOpen(false)} />}
+                        </div>
+                        <button onClick={() => setIsCommitOpen(true)} disabled={dirtyNotes.length === 0} className={`md:hidden p-2 rounded-full shadow-sm active:scale-95 ${dirtyNotes.length > 0 ? 'bg-blue-500 text-white' : 'bg-white text-gray-300'}`}><UploadCloud size={18}/></button>
+                    </div>
                 </div>
-                <span className="hidden md:block text-xs font-bold text-gray-400 uppercase tracking-wider">All Notes</span>
                 
-                <div className="flex gap-2">
-                    <button onClick={() => setIsCommitOpen(true)} disabled={dirtyNotes.length === 0} className={`md:hidden p-2 rounded-full shadow-sm active:scale-95 ${dirtyNotes.length > 0 ? 'bg-blue-500 text-white' : 'bg-white text-gray-300'}`}><UploadCloud size={18}/></button>
-                    <button onClick={handleCreateNote} className="p-2 md:p-1 hover:bg-gray-200 rounded-full md:rounded text-gray-500 md:text-gray-400 bg-white md:bg-transparent shadow-sm md:shadow-none active:scale-95"><Plus size={20} /></button>
+                {/* Search Bar (Both Desktop & Mobile) */}
+                <div className="relative group w-full">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" size={16} />
+                    <input 
+                        type="text" 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search notes..." 
+                        className="w-full bg-white/60 pl-9 pr-4 py-2 rounded-lg text-sm placeholder-gray-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 transition-all outline-none shadow-sm" 
+                    />
                 </div>
             </div>
 
-            {/* Search (Mobile Only visual tweak) */}
-            <div className="px-4 py-2 md:hidden">
-                 <div className="relative group">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" size={16} />
-                    <input type="text" placeholder="Search" className="w-full bg-white/60 pl-9 pr-4 py-2 rounded-lg text-sm placeholder-gray-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 transition-all outline-none shadow-sm" />
-                  </div>
-            </div>
-
-            {/* List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar">
-                {notes.length === 0 && <div className="text-center mt-12 opacity-40"><p className="text-sm text-gray-500">No notes yet</p></div>}
-                {notes.map(note => (
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar pb-24">
+                {displayedNotes.length === 0 && <div className="text-center mt-12 opacity-40"><p className="text-sm text-gray-500">No notes found</p></div>}
+                {displayedNotes.map(note => (
                   <NoteItem key={note.id} note={note} isActive={activeNoteId === note.id} onClick={(n) => { setActiveNoteId(n.id); setIsPreview(false); }} onDelete={handleDeleteNote} />
                 ))}
             </div>
         </div>
 
+        {/* Global FAB */}
+        <div className="absolute bottom-8 right-8 z-50">
+             <button onClick={handleCreateNote} className="flex items-center justify-center w-16 h-16 bg-blue-500 rounded-full shadow-[0_8px_30px_-4px_rgba(59,130,246,0.6)] hover:bg-blue-600 active:scale-95 transition-all hover:rotate-90 duration-300">
+                <Plus className="text-white" size={32} strokeWidth={3} />
+             </button>
+        </div>
+
         {/* Editor Column */}
-        {/* Desktop: Always visible (flex-1) */}
-        {/* Mobile: Visible ONLY if active note exists (Fixed overlay) */}
-        <div className={`
-            flex-col bg-white h-full
-            ${activeNoteId ? 'flex w-full md:flex-1 absolute inset-0 md:static z-20' : 'hidden md:flex md:flex-1'}
-        `}>
+        <div className={`flex-col bg-white h-full ${activeNoteId ? 'flex w-full md:flex-1 absolute inset-0 md:static z-20' : 'hidden md:flex md:flex-1'}`}>
            <div className="flex items-center justify-between px-4 md:px-8 py-3 md:py-2 border-b border-gray-100 h-14 md:h-12 shrink-0">
-                {/* Mobile Back Button */}
                 <button onClick={() => setActiveNoteId(null)} className="md:hidden flex items-center text-blue-500 font-medium -ml-2 active:opacity-50">
                   <ChevronLeft size={24} />
                   <span>Notes</span>
                 </button>
-
-                {/* Desktop Last Edited */}
                 <div className="hidden md:block text-xs text-gray-400">
                     {activeNote ? `Last edited: ${formatDateReadable(activeNote.updatedAt)}` : ''}
                 </div>
-
-                {/* Actions */}
                 <div className="flex gap-2">
                   {activeNote && (
                     <>
@@ -644,9 +701,42 @@ export default function App() {
             {activeNote ? (
                 <div className="flex-1 overflow-y-auto no-scrollbar">
                   <div className="max-w-3xl mx-auto p-6 md:p-12">
-                    {!isPreview && <input type="text" value={activeNote.title} onChange={(e) => handleUpdateNote(activeNote.id, { title: e.target.value })} placeholder="New Title" className="w-full text-3xl font-bold text-gray-900 placeholder-gray-300 border-none focus:ring-0 p-0 bg-transparent mb-6" />}
+                    
+                    {!isPreview && (
+                        <input type="text" value={activeNote.title} onChange={(e) => handleUpdateNote(activeNote.id, { title: e.target.value })} placeholder="New Title" className="w-full text-3xl font-bold text-gray-900 placeholder-gray-300 border-none focus:ring-0 p-0 bg-transparent mb-4" />
+                    )}
+                    
+                    {!isPreview && (
+                        <div className="flex items-center gap-2 mb-6 relative flex-wrap">
+                            <div className="flex flex-wrap gap-2">
+                                {activeNoteParsed.tags.map(tag => (
+                                    <div key={tag} className="flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-600 text-xs font-medium rounded-full group cursor-pointer hover:bg-blue-100 transition-colors" onClick={() => handleToggleTag(tag)}>
+                                        <Hash size={12} className="opacity-50"/>
+                                        {tag}
+                                        <X size={12} className="ml-1 opacity-0 group-hover:opacity-100 hover:text-red-500"/>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="relative" ref={tagButtonRef}>
+                                <button 
+                                    onClick={() => setIsTagMenuOpen(!isTagMenuOpen)}
+                                    className="flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-blue-500 px-2 py-1 rounded-full hover:bg-gray-50 transition-colors"
+                                >
+                                    <Plus size={14} />
+                                    <span>TAGS</span>
+                                </button>
+                                {isTagMenuOpen && (
+                                    <TagMenu 
+                                        selectedTags={activeNoteParsed.tags} 
+                                        onToggleTag={handleToggleTag}
+                                    />
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     {isPreview && <h1 className="text-4xl font-bold text-gray-900 mb-8 pb-4 border-b border-gray-100 anim-slide-up">{activeNote.title || "Untitled"}</h1>}
-                    {isPreview ? <MarkdownPreview content={activeNote.content} /> : <textarea value={activeNote.content} onChange={(e) => handleUpdateNote(activeNote.id, { content: e.target.value })} placeholder="Start writing..." className="w-full h-[calc(100vh-200px)] resize-none text-base leading-relaxed text-gray-700 placeholder-gray-300 border-none focus:ring-0 p-0 bg-transparent font-mono" />}
+                    {isPreview ? <MarkdownPreview content={activeNote.content} /> : <textarea value={activeNote.content} onChange={(e) => handleUpdateNote(activeNote.id, { content: e.target.value })} placeholder="Start writing..." className="w-full h-[calc(100vh-300px)] resize-none text-base leading-relaxed text-gray-700 placeholder-gray-300 border-none focus:ring-0 p-0 bg-transparent font-mono" />}
                   </div>
                 </div>
             ) : (
