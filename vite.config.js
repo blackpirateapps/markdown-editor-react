@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'Things 3 Markdown',
-        short_name: 'T3 Notes',
+        name: 'Microblog',
+        short_name: 'Microblog',
         description: 'A beautiful markdown editor inspired by Things 3',
         theme_color: '#ffffff',
         background_color: '#F5F6F8',
