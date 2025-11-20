@@ -4,7 +4,7 @@ import {
   Search, FileText, Trash2, Layout, CheckCircle2, 
   Github, Loader2, X, RefreshCw, Eye, PenLine, 
   ExternalLink, UploadCloud, FileDiff, AlertCircle,
-  GitPullRequestArrow, Menu
+  GitPullRequest, Menu
 } from 'lucide-react';
 
 // --- Utilities ---
@@ -284,7 +284,7 @@ const SettingsModal = ({ isOpen, onClose, config, onSave, onFetch, isLoading, pr
                         <div className="flex gap-3">
                             <button onClick={() => onSave(localConfig)} disabled={isLoading} className="flex-1 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors active:scale-95">Save Config</button>
                             <button onClick={() => onFetch(localConfig)} disabled={isLoading || !localConfig.owner || !localConfig.repo} className="flex-1 py-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm active:scale-95">
-                                {isLoading ? <><Loader2 size={16} className="animate-spin"/><span>{progress.total > 0 ? `${progress.current}/${progress.total}` : 'Cloning...'}</span></> : <><GitPullRequestArrow size={16}/><span>Clone / Sync</span></>}
+                                {isLoading ? <><Loader2 size={16} className="animate-spin"/><span>{progress.total > 0 ? `${progress.current}/${progress.total}` : 'Cloning...'}</span></> : <><GitPullRequest size={16}/><span>Clone / Sync</span></>}
                             </button>
                         </div>
                         {isLoading && progress.total > 0 && <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden"><div className="bg-blue-500 h-full rounded-full transition-all duration-300 ease-out" style={{ width: `${(progress.current / progress.total) * 100}%` }} /></div>}
@@ -309,7 +309,7 @@ const NoteItem = ({ note, isActive, onClick, onDelete }) => {
   );
 };
 
-const SidebarItem = ({ icon: Icon, label, count, isActive, onClick, isMobile }) => (
+const SidebarItem = ({ icon: Icon, label, count, isActive, onClick }) => (
   <button onClick={onClick} className={`w-full flex items-center justify-between px-3 py-2 mb-1 rounded-lg text-sm font-medium transition-all duration-200 ${isActive ? 'bg-gray-200/60 text-gray-900 scale-105 origin-left' : 'text-gray-600 hover:bg-gray-100 hover:pl-4'}`}>
     <div className="flex items-center gap-3"><Icon size={18} className={isActive ? 'text-gray-900' : 'text-gray-500'} /><span>{label}</span></div>
     {count !== undefined && <span className="text-xs font-bold text-gray-400">{count}</span>}
